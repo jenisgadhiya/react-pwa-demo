@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { User } from '@shared/schema';
 import { supabase } from '../supabase';
+import { App } from 'antd';
 
 export function useUsers() {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   // Setup Supabase real-time subscription
   useEffect(() => {
@@ -13,29 +15,53 @@ export function useUsers() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'users' },
-        () => {
+        (payload) => {
           // Invalidate and refetch when data changes
           queryClient.invalidateQueries({ queryKey: ['users'] });
+
+          // Show notification for changes
+          const event = payload.eventType;
+          if (event === 'INSERT') {
+            message.success('New user created');
+          } else if (event === 'UPDATE') {
+            message.success('User updated');
+          } else if (event === 'DELETE') {
+            message.success('User deleted');
+          }
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, message]);
 
   const { data: users = [], isLoading: loading, error } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as User[];
-    }
+        if (error) {
+          if (error.code === 'PGRST116') {
+            message.error('Table not found. Please ensure the users table is created.');
+          } else {
+            message.error(`Failed to fetch users: ${error.message}`);
+          }
+          throw error;
+        }
+
+        return data as User[];
+      } catch (err) {
+        console.error('Error fetching users:', err);
+        throw err;
+      }
+    },
+    retry: false // Don't retry on failure to avoid spam
   });
 
   const createUserMutation = useMutation({
@@ -51,7 +77,12 @@ export function useUsers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      message.success('User created successfully');
     },
+    onError: (error: any) => {
+      console.error('Error creating user:', error);
+      message.error(error.message || 'Failed to create user');
+    }
   });
 
   const updateUserMutation = useMutation({
@@ -68,7 +99,12 @@ export function useUsers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      message.success('User updated successfully');
     },
+    onError: (error: any) => {
+      console.error('Error updating user:', error);
+      message.error(error.message || 'Failed to update user');
+    }
   });
 
   const deleteUserMutation = useMutation({
@@ -83,7 +119,12 @@ export function useUsers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      message.success('User deleted successfully');
     },
+    onError: (error: any) => {
+      console.error('Error deleting user:', error);
+      message.error(error.message || 'Failed to delete user');
+    }
   });
 
   return {
@@ -91,7 +132,7 @@ export function useUsers() {
     loading,
     error,
     createUser: createUserMutation.mutateAsync,
-    updateUser: (id: number, updates: Partial<User>) => 
+    updateUser: (id: number, updates: Partial<User>) =>
       updateUserMutation.mutateAsync({ id, updates }),
     deleteUser: deleteUserMutation.mutateAsync,
   };
