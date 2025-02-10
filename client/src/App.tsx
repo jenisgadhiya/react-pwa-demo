@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import UsersPage from "./pages/users";
 import NotFound from "@/pages/not-found";
-import { ConfigProvider } from "antd";
+import { ConfigProvider, App as AntApp } from "antd";
 
 const theme = {
   token: {
@@ -29,7 +29,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={theme}>
-        <Router />
+        <AntApp>
+          <Router />
+        </AntApp>
       </ConfigProvider>
     </QueryClientProvider>
   );

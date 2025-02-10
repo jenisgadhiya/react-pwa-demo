@@ -1,14 +1,16 @@
-import { Table, Button, Space, Popconfirm, Tag, message } from "antd";
+import { Table, Button, Space, Popconfirm, Tag } from "antd";
 import { EditOutlined, DeleteOutlined, UserAddOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import UserForm from "./UserForm";
 import type { User } from "@shared/schema";
 import { useUsers } from "@/lib/hooks/useUsers";
+import { App } from "antd";
 
 export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const { users, loading, error, deleteUser } = useUsers();
+  const { message } = App.useApp();
 
   if (error) {
     message.error("Failed to load users");

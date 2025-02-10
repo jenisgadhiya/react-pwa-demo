@@ -1,6 +1,7 @@
-import { Modal, Form, Input, Select, message } from "antd";
+import { Modal, Form, Input, Select } from "antd";
 import type { User } from "@shared/schema";
 import { useUsers } from "@/lib/hooks/useUsers";
+import { App } from "antd";
 
 interface UserFormProps {
   open: boolean;
@@ -11,6 +12,7 @@ interface UserFormProps {
 export default function UserForm({ open, onCancel, user }: UserFormProps) {
   const [form] = Form.useForm();
   const { createUser, updateUser } = useUsers();
+  const { message } = App.useApp();
 
   const handleSubmit = async (values: any) => {
     try {

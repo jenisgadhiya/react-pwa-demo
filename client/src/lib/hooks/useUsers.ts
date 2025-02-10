@@ -9,13 +9,13 @@ export function useUsers() {
 
   useEffect(() => {
     fetchUsers();
-    
+
     // Set up real-time subscription
     const subscription = supabase
       .channel('public:users')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'users' },
-        (payload) => {
+        () => {
           fetchUsers(); // Refetch when data changes
       })
       .subscribe();
@@ -27,15 +27,18 @@ export function useUsers() {
 
   async function fetchUsers() {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      setError(null);
+      const { data, error: supabaseError } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
       setUsers(data || []);
     } catch (err) {
       setError(err as Error);
+      console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
     }
@@ -50,8 +53,10 @@ export function useUsers() {
         .single();
 
       if (error) throw error;
+      await fetchUsers();
       return data;
     } catch (err) {
+      console.error('Error creating user:', err);
       throw err;
     }
   }
@@ -66,8 +71,10 @@ export function useUsers() {
         .single();
 
       if (error) throw error;
+      await fetchUsers();
       return data;
     } catch (err) {
+      console.error('Error updating user:', err);
       throw err;
     }
   }
@@ -80,8 +87,10 @@ export function useUsers() {
         .eq('id', id);
 
       if (error) throw error;
+      await fetchUsers();
       return true;
     } catch (err) {
+      console.error('Error deleting user:', err);
       throw err;
     }
   }
