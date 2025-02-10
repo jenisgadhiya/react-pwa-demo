@@ -1,31 +1,27 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { Table, Button, Space, Popconfirm, Tag, message } from "antd";
 import { EditOutlined, DeleteOutlined, UserAddOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import UserForm from "./UserForm";
 import type { User } from "@shared/schema";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useUsers } from "@/lib/hooks/useUsers";
 
 export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const { users, loading, error, deleteUser } = useUsers();
 
-  const { data: users, isLoading } = useQuery({
-    queryKey: ["/api/users"],
-  });
+  if (error) {
+    message.error("Failed to load users");
+  }
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/users/${id}`);
-    },
-    onSuccess: () => {
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteUser(id);
       message.success("User deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-    },
-    onError: () => {
+    } catch (error) {
       message.error("Failed to delete user");
-    },
-  });
+    }
+  };
 
   const columns = [
     {
@@ -73,7 +69,7 @@ export default function UsersPage() {
           />
           <Popconfirm
             title="Are you sure you want to delete this user?"
-            onConfirm={() => deleteMutation.mutate(record.id)}
+            onConfirm={() => handleDelete(record.id)}
             okText="Yes"
             cancelText="No"
           >
@@ -103,7 +99,7 @@ export default function UsersPage() {
       <Table
         columns={columns}
         dataSource={users}
-        loading={isLoading}
+        loading={loading}
         rowKey="id"
         pagination={{ pageSize: 10 }}
       />

@@ -1,7 +1,6 @@
 import { Modal, Form, Input, Select, message } from "antd";
-import { useMutation } from "@tanstack/react-query";
-import type { User, InsertUser } from "@shared/schema";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { User } from "@shared/schema";
+import { useUsers } from "@/lib/hooks/useUsers";
 
 interface UserFormProps {
   open: boolean;
@@ -11,25 +10,23 @@ interface UserFormProps {
 
 export default function UserForm({ open, onCancel, user }: UserFormProps) {
   const [form] = Form.useForm();
+  const { createUser, updateUser } = useUsers();
 
-  const mutation = useMutation({
-    mutationFn: async (data: InsertUser) => {
+  const handleSubmit = async (values: any) => {
+    try {
       if (user) {
-        await apiRequest("PATCH", `/api/users/${user.id}`, data);
+        await updateUser(user.id, values);
+        message.success("User updated successfully");
       } else {
-        await apiRequest("POST", "/api/users", data);
+        await createUser(values);
+        message.success("User created successfully");
       }
-    },
-    onSuccess: () => {
-      message.success(`User ${user ? "updated" : "created"} successfully`);
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       onCancel();
       form.resetFields();
-    },
-    onError: () => {
+    } catch (error) {
       message.error(`Failed to ${user ? "update" : "create"} user`);
-    },
-  });
+    }
+  };
 
   return (
     <Modal
@@ -39,13 +36,12 @@ export default function UserForm({ open, onCancel, user }: UserFormProps) {
       cancelText="Cancel"
       onCancel={onCancel}
       onOk={() => form.submit()}
-      confirmLoading={mutation.isPending}
     >
       <Form
         form={form}
         layout="vertical"
         initialValues={user || {}}
-        onFinish={(values) => mutation.mutate(values)}
+        onFinish={handleSubmit}
       >
         <Form.Item
           name="name"
