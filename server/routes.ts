@@ -2,21 +2,10 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema } from "@shared/schema";
-import { WebSocketServer } from "ws";
 import { ZodError } from "zod";
 
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-
-  // Broadcast updates to all connected clients
-  const broadcast = (message: any) => {
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(message));
-      }
-    });
-  };
 
   app.get("/api/users", async (_req, res) => {
     const users = await storage.getUsers();
@@ -35,7 +24,6 @@ export function registerRoutes(app: Express): Server {
     try {
       const userData = insertUserSchema.parse(req.body);
       const user = await storage.createUser(userData);
-      broadcast({ type: "user_created", data: user });
       res.status(201).json(user);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -52,7 +40,6 @@ export function registerRoutes(app: Express): Server {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      broadcast({ type: "user_updated", data: user });
       res.json(user);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -67,7 +54,6 @@ export function registerRoutes(app: Express): Server {
     if (!success) {
       return res.status(404).json({ message: "User not found" });
     }
-    broadcast({ type: "user_deleted", data: { id: Number(req.params.id) } });
     res.status(204).send();
   });
 
