@@ -15,19 +15,9 @@ export function useUsers() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'users' },
-        (payload) => {
+        () => {
           // Invalidate and refetch when data changes
           queryClient.invalidateQueries({ queryKey: ['users'] });
-
-          // Show notification for changes
-          const event = payload.eventType;
-          if (event === 'INSERT') {
-            message.success('New user created');
-          } else if (event === 'UPDATE') {
-            message.success('User updated');
-          } else if (event === 'DELETE') {
-            message.success('User deleted');
-          }
         }
       )
       .subscribe();
@@ -35,7 +25,7 @@ export function useUsers() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [queryClient, message]);
+  }, [queryClient]);
 
   const { data: users = [], isLoading: loading, error } = useQuery({
     queryKey: ['users'],
@@ -46,22 +36,13 @@ export function useUsers() {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (error) {
-          if (error.code === 'PGRST116') {
-            message.error('Table not found. Please ensure the users table is created.');
-          } else {
-            message.error(`Failed to fetch users: ${error.message}`);
-          }
-          throw error;
-        }
-
+        if (error) throw error;
         return data as User[];
       } catch (err) {
         console.error('Error fetching users:', err);
         throw err;
       }
-    },
-    retry: false // Don't retry on failure to avoid spam
+    }
   });
 
   const createUserMutation = useMutation({
@@ -80,7 +61,6 @@ export function useUsers() {
       message.success('User created successfully');
     },
     onError: (error: any) => {
-      console.error('Error creating user:', error);
       message.error(error.message || 'Failed to create user');
     }
   });
@@ -102,7 +82,6 @@ export function useUsers() {
       message.success('User updated successfully');
     },
     onError: (error: any) => {
-      console.error('Error updating user:', error);
       message.error(error.message || 'Failed to update user');
     }
   });
@@ -122,7 +101,6 @@ export function useUsers() {
       message.success('User deleted successfully');
     },
     onError: (error: any) => {
-      console.error('Error deleting user:', error);
       message.error(error.message || 'Failed to delete user');
     }
   });
