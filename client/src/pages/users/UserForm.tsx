@@ -18,10 +18,8 @@ export default function UserForm({ open, onCancel, user }: UserFormProps) {
     try {
       if (user) {
         await updateUser(user.id, values);
-        message.success("User updated successfully");
       } else {
         await createUser(values);
-        message.success("User created successfully");
       }
       onCancel();
       form.resetFields();
