@@ -1,65 +1,88 @@
-import { useState, useEffect } from 'react';
-import type { User } from '@shared/schema';
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '../queryClient';
+import type { User } from '@shared/schema';
+import { supabase } from '../supabase';
 
 export function useUsers() {
   const queryClient = useQueryClient();
-  const [socket, setSocket] = useState<WebSocket | null>(null);
 
+  // Setup Supabase real-time subscription
   useEffect(() => {
-    // Setup WebSocket connection
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      if (message.type.startsWith('user_')) {
-        // Invalidate users query on any user-related WebSocket message
-        queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      }
-    };
-
-    setSocket(ws);
+    const channel = supabase
+      .channel('public:users')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'users' },
+        () => {
+          // Invalidate and refetch when data changes
+          queryClient.invalidateQueries({ queryKey: ['users'] });
+        }
+      )
+      .subscribe();
 
     return () => {
-      ws.close();
+      supabase.removeChannel(channel);
     };
   }, [queryClient]);
 
   const { data: users = [], isLoading: loading, error } = useQuery({
-    queryKey: ['/api/users'],
-    queryFn: () => apiRequest('GET', '/api/users').then(res => res.json())
+    queryKey: ['users'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as User[];
+    }
   });
 
   const createUserMutation = useMutation({
     mutationFn: async (userData: Omit<User, 'id' | 'created_at'>) => {
-      const res = await apiRequest('POST', '/api/users', userData);
-      return res.json();
+      const { data, error } = await supabase
+        .from('users')
+        .insert([userData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as User;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: number; updates: Partial<User> }) => {
-      const res = await apiRequest('PATCH', `/api/users/${id}`, updates);
-      return res.json();
+      const { data, error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as User;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest('DELETE', `/api/users/${id}`);
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 

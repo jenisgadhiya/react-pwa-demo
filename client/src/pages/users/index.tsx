@@ -13,7 +13,7 @@ export default function UsersPage() {
   const { message } = App.useApp();
 
   if (error) {
-    message.error("Failed to load users");
+    console.error('Error fetching users:', error);
   }
 
   const handleDelete = async (id: number) => {
@@ -21,6 +21,7 @@ export default function UsersPage() {
       await deleteUser(id);
       message.success("User deleted successfully");
     } catch (error) {
+      console.error('Error deleting user:', error);
       message.error("Failed to delete user");
     }
   };

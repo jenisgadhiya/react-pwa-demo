@@ -2,6 +2,8 @@ import { Switch, Route } from "wouter";
 import UsersPage from "./pages/users";
 import NotFound from "@/pages/not-found";
 import { ConfigProvider, App as AntApp } from "antd";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 
 const theme = {
   token: {
@@ -25,13 +27,15 @@ function Router() {
 
 function App() {
   return (
-    <ConfigProvider theme={theme}>
-      <AntApp>
-        <div className="min-h-screen bg-background">
-          <Router />
-        </div>
-      </AntApp>
-    </ConfigProvider>
+    <QueryClientProvider client={queryClient}>
+      <ConfigProvider theme={theme}>
+        <AntApp>
+          <div className="min-h-screen bg-background">
+            <Router />
+          </div>
+        </AntApp>
+      </ConfigProvider>
+    </QueryClientProvider>
   );
 }
 
